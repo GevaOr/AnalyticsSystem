@@ -9,7 +9,6 @@ function PageVisitPie() {
   const [data, setData] = useState([]);
 
   useEffect(() => {
-    // ACTUAL REQUEST
     axios
       .get("http://localhost:5000/pageviews")
       .then((response) => {

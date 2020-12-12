@@ -6,7 +6,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  // Legend,
   ResponsiveContainer,
 } from "recharts";
 import axios from "axios";
@@ -72,7 +71,6 @@ function SessionByDay() {
           <XAxis dataKey="date" />
           <YAxis />
           <Tooltip />
-          {/* <Legend /> */}
           <Line
             type="monotone"
             dataKey="sessions"

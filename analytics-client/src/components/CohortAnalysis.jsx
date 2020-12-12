@@ -1,33 +1,16 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
-import { Typography, Grid } from "@material-ui/core";
+import { Typography } from "@material-ui/core";
+import Table from "@material-ui/core/Table";
+import TableBody from "@material-ui/core/TableBody";
+import TableCell from "@material-ui/core/TableCell";
+import TableContainer from "@material-ui/core/TableContainer";
+import TableHead from "@material-ui/core/TableHead";
+import TableRow from "@material-ui/core/TableRow";
+import Paper from "@material-ui/core/Paper";
 
-const demoData = [
-  {
-    startDate: new Date("2020-01-22"),
-    endDate: new Date("2020-01-28"),
-    newUsers: 2458,
-    retention: [100, 45, 25, 18, 10],
-  },
-  {
-    startDate: new Date("2020-01-15"),
-    endDate: new Date("2020-01-21"),
-    newUsers: 1865,
-    retention: [100, 45, 25, 18],
-  },
-  {
-    startDate: new Date("2020-01-08"),
-    endDate: new Date("2020-01-14"),
-    newUsers: 988,
-    retention: [100, 45, 25],
-  },
-  {
-    startDate: new Date("2020-01-01"),
-    endDate: new Date("2020-01-07"),
-    newUsers: 824,
-    retention: [100, 10],
-  },
-];
+import axios from "axios";
+
+const Color = require("color");
 
 function CohortAnalysis() {
   const [data, setData] = useState([]);
@@ -57,103 +40,97 @@ function CohortAnalysis() {
   };
 
   useEffect(() => {
-    // ACTUAL DATA CALL
-    // axios
-    //   .get("http://localhost:5000/cohortAnalysis")
-    //   .then((response) => {
-    //     setData(response);
-    //     setAvgData(getAvgPercentages(response))
-    //   })
-    //   .catch((err) => {
-    //     console.log(err);
-    //   });
-
-    // DUMMY DATA SET
-    setData(demoData);
-    setAvgData(getAvg(demoData));
-    setTotalUsers(getTotalUsers(demoData));
+    axios
+      .get("http://localhost:5000/cohortAnalysis")
+      .then((response) => {
+        let resData = response.data.map((ret) => {
+          return {
+            startDate: new Date(ret.startDate),
+            endDate: new Date(ret.endDate),
+            newUsers: ret.newUsers,
+            retention: ret.retention,
+          };
+        });
+        setData(resData);
+        setAvgData(getAvg(resData));
+        setTotalUsers(getTotalUsers(resData));
+      })
+      .catch((err) => {
+        console.log(err);
+      });
   }, []);
 
+  let lightBlue = Color.rgb(150, 200, 255);
+
   return (
-    <div>
-      <Grid
-        container
-        direction="row"
-        justify="flex-start"
-        alignItems="flex-start"
-      >
-        {data.length > 0 &&
-          data[0].retention.map((_, i) => {
-            return <Typography variant="body2">Week {i}</Typography>;
-          })}
-      </Grid>
-      {avgData.length > 0 && (
-        <Grid
-          container
-          direction="row"
-          justify="flex-start"
-          alignItems="flex-start"
-        >
-          <Grid item>
-            <Typography variant="body2">Total users</Typography>
-            <Typography variant="caption">{totalUsers} new users</Typography>
-          </Grid>
-          {avgData.map((percent) => {
-            return (
-              <Grid
-                item
-                style={{
-                  backgroundColor: "gray",
-                  borderRadius: "5px",
-                  margin: "3px 8px",
-                  padding: "1px",
-                }}
-              >
-                <Typography variant="body2">{percent}%</Typography>
-              </Grid>
-            );
-          })}
-        </Grid>
-      )}
-      {data.length > 0 &&
-        data.map((week) => {
-          return (
-            <Grid
-              container
-              direction="row"
-              justify="flex-start"
-              alignItems="flex-start"
-            >
-              <Grid item>
-                <Typography variant="body2">
-                  {week.startDate.toDateString()} -{" "}
-                  {week.endDate.toDateString()}
-                </Typography>
-                <Typography variant="caption">
-                  {week.newUsers} new users
-                </Typography>
-              </Grid>
-              {week.retention.map((percent) => {
+    <TableContainer component={Paper} className="cohort-table">
+      <Table stickyHeader aria-label="sticky table">
+        <TableHead>
+          <TableRow>
+            <TableCell />
+            {data.length > 0 &&
+              data[0].retention.map((_, i) => {
                 return (
-                  <Grid
-                    item
-                    style={{
-                      backgroundColor: "lightblue",
-                      borderRadius: "5px",
-                      margin: "3px 8px",
-                      padding: "1px",
-                    }}
-                  >
-                    <Typography style={{ textAlign: "center" }} variant="body2">
-                      {percent}%
-                    </Typography>
-                  </Grid>
+                  <TableCell align="center" style={{ fontSize: "0.7em" }}>
+                    Week {i}
+                  </TableCell>
                 );
               })}
-            </Grid>
-          );
-        })}
-    </div>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {avgData.length > 0 && (
+            <TableRow>
+              <TableCell align="center">
+                <Typography variant="body2">All users</Typography>
+                <Typography variant="caption">{totalUsers} users</Typography>
+              </TableCell>
+              {avgData.map((percent) => {
+                return (
+                  <TableCell>
+                    <Typography variant="body2">
+                      {percent.toFixed(2)}%
+                    </Typography>
+                  </TableCell>
+                );
+              })}
+            </TableRow>
+          )}
+          {data.length > 0 &&
+            data.map((week) => {
+              return (
+                <TableRow>
+                  <TableCell component="th" scope="row" align="left">
+                    <Typography variant="body2">
+                      {week.startDate.toDateString()} -{" "}
+                      {week.endDate.toDateString()}
+                    </Typography>
+                    <Typography variant="caption">
+                      {week.newUsers} users
+                    </Typography>
+                  </TableCell>
+                  {week.retention.map((percent) => {
+                    return (
+                      <TableCell
+                        align="center"
+                        style={{
+                          backgroundColor: lightBlue
+                            .darken(percent / 200)
+                            .hex(),
+                        }}
+                      >
+                        <Typography variant="body2">
+                          {percent ? percent.toFixed(2) : 0}%
+                        </Typography>
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              );
+            })}
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
 }
 

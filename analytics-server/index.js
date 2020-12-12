@@ -8,7 +8,7 @@ app.use(cors());
 app.use(express.json());
 
 mongoose.connect(
-  "mongodb+srv://rootUSER:rlkbL1gt4YDNybEH@cluster0.luqmg.mongodb.net/analytics?retryWrites=true&w=majority",
+  "mongodb+srv://rootUSER:<password>@cluster0.luqmg.mongodb.net/<dbname>?retryWrites=true&w=majority",
   { useNewUrlParser: true, useUnifiedTopology: true },
   () => {
     console.log("Connected.");
@@ -21,13 +21,15 @@ getLastDays = (numOfDays, selectedDate = new Date()) => {
   selectedDate = new Date(dateMs);
   let dayInMonth = selectedDate.getDate();
   let pastDayMs = selectedDate.setDate(dayInMonth - numOfDays);
-  // selectedDate.setDate(-1);
-  // let pastDay = new Date(
-  //   selectedDate.getFullYear(),
-  //   selectedDate.getMonth(),
-  //   selectedDate.getDate()
-  // );
   return new Date(pastDayMs);
+};
+
+getLastWeeks = (numOfWeeks) => {
+  let todayMs = new Date().setHours(0, 0, 0, 0);
+  let today = new Date(todayMs);
+  let dayInMonth = today.getDate();
+  let pastWeekMs = today.setDate(dayInMonth - numOfWeeks * 7);
+  return new Date(pastWeekMs);
 };
 
 randomDate = (start, end) => {
@@ -173,42 +175,66 @@ app.post("/sessionsByHour", (req, res) => {
 });
 
 // cohortAnalysis
-// app.get("/cohortAnalysis", (req, res) => {
-//   Event.find()
-//     .exec()
-//     .then((docs) => {
-//       let retention = [];
-//       for (let i = 0; i < 4; i++) {
-//         let currentEvents = docs.filter(
-//           (e) => e.date > getLastWeeks(i + 2).getTime()
-//         );
-//         let formerEvents = docs.filter(
-//           (e) => e.date > getLastWeeks(i + 2).getTime()
-//         );
-//         let UserIds = [];
-//         currentEvents.forEach((currentEvent) => {
-//           let isNewUser = true;
-//           docs.forEach((formerEvent) => {
-//             if (
-//               currentEvent.distinct_user_id === formerEvent.distinct_user_id
-//             ) {
-//               isNewUser = false;
-//             }
-//           });
-//           if (isNewUser && !UserIds.includes(currentEvent.distinct_user_id)) {
-//             userIds.push(currentEvent.distinct_user_id);
-//           }
-//         });
-//         retention.push({
-//           startDate: getLastWeeks(i + 2),
-//           endDate: getLastWeeks(i + 1),
-//           newUsers: userIds.length,
-//           retention: [], // TODO
-//         });
-//       }
-//       res.send(retention);
-//     });
-// });
+app.get("/cohortAnalysis", (req, res) => {
+  Event.find()
+    .exec()
+    .then((docs) => {
+      let retention = [];
+      for (let i = 0; i < 4; i++) {
+        let currentEvents = docs.filter(
+          (e) => e.date > getLastWeeks(i + 2).getTime()
+        );
+        let formerEvents = docs.filter(
+          (e) => e.date < getLastWeeks(i + 3).getTime()
+        );
+        let userIds = [];
+        currentEvents.forEach((currentEvent) => {
+          let isNewUser = true;
+          formerEvents.forEach((formerEvent) => {
+            if (
+              currentEvent.distinct_user_id === formerEvent.distinct_user_id
+            ) {
+              isNewUser = false;
+            }
+          });
+          if (isNewUser && !userIds.includes(currentEvent.distinct_user_id)) {
+            userIds.push(currentEvent.distinct_user_id);
+          }
+        });
+        retention.unshift({
+          startDate: getLastWeeks(i + 2),
+          endDate: getLastWeeks(i + 1),
+          newUsers: userIds.length,
+          retention: getRetention(userIds, docs, i + 1),
+        });
+      }
+      res.send(retention);
+    })
+    .catch((error) => {
+      console.log(error);
+    });
+});
+
+getRetention = (userIds, docs, numOfChecks) => {
+  let retention = [100];
+  for (let i = 0; i < numOfChecks; i++) {
+    let currentEvents = docs.filter(
+      (e) =>
+        e.date > getLastWeeks(i + 1).getTime() &&
+        e.date < getLastWeeks(i).getTime()
+    );
+    let uniqueIds = [];
+    userIds.forEach((id) => {
+      currentEvents.forEach((e) => {
+        if (id === e.distinct_user_id && !uniqueIds.includes(id)) {
+          uniqueIds.push(id);
+        }
+      });
+    });
+    retention.unshift((uniqueIds.length / userIds.length) * 100);
+  }
+  return retention;
+};
 
 // os pie
 app.get("/OSPie", (req, res) => {
@@ -286,22 +312,6 @@ app.get("/locations", (req, res) => {
     });
 });
 
-// // all events
-// app.get("/events", (req, res) => {
-//   const page = req.query.page;
-//   const perPage = 10;
-//   Event.find({})
-//     .limit(perPage)
-//     .skip(perPage * page)
-//     .sort({ date: "desc" })
-//     .exec((err, events) => {
-//       if (err) {
-//         res.send(err);
-//       }
-//       res.send(events);
-//     });
-// });
-
 // search events
 app.get("/events", (req, res) => {
   let page = req.query.page;
@@ -339,35 +349,6 @@ app.get("/events", (req, res) => {
       console.log(err);
     });
 });
-
-// // search events
-// app.get("/events/search", (req, res) => {
-//   const query = req.query.q;
-//   const page = req.query.page;
-//   const sort = req.query.sort;
-//   const browser = req.query.browser;
-//   let mongoQuery = Event.find({ $text: { $search: query } });
-//   if (browser) {
-//     mongoQuery.where({ browser: browser });
-//   }
-//   if (sort) {
-//     let sortBy = "";
-//     if (sort === "date") {
-//       sortBy = "date";
-//     } else if (sort == "alphabetical") {
-//       sortBy = "alphabetical";
-//     }
-//     mongoQuery.sort(sortBy);
-//   }
-//   mongoQuery
-//     .exec()
-//     .then((events) => {
-//       res.send(events);
-//     })
-//     .catch((err) => {
-//       console.log(err);
-//     });
-// });
 
 app.delete("/events", (req, res) => {
   Event.remove()

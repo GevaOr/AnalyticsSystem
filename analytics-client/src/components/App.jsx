@@ -31,7 +31,7 @@ function App() {
         <TileContainer>
           <SessionByHour />
         </TileContainer>
-        <TileContainer>
+        <TileContainer style={{ padding: 0, maxWidth: 610, height: 460 }}>
           <CohortAnalysis />
         </TileContainer>
         <TileContainer>

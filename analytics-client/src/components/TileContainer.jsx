@@ -8,8 +8,8 @@ const TileContainer = styled.div`
   max-width: 600px;
   height: 450px;
   overflow-y: auto;
-  box-shadow: -5px 5px 20px gray;
-  background-color: rgba(242, 242, 248, 0.75);
+  box-shadow: -3px 3px 15px gray;
+  background-color: rgba(248, 248, 255, 0.7);
   background-image: url("https://www.transparenttextures.com/patterns/dust.png");
 `;
 
