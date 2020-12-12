@@ -16,18 +16,14 @@ mongoose.connect(
   }
 );
 
-getLastDays = (numOfDays, selectedDate = new Date()) => {
-  let dateMs = selectedDate.setHours(0, 0, 0, 0);
-  selectedDate = new Date(dateMs);
-  let dayInMonth = selectedDate.getDate();
-  let pastDayMs = selectedDate.setDate(dayInMonth - numOfDays);
-  // selectedDate.setDate(-1);
-  // let pastDay = new Date(
-  //   selectedDate.getFullYear(),
-  //   selectedDate.getMonth(),
-  //   selectedDate.getDate()
-  // );
-  return new Date(pastDayMs);
+getLastDays = (numOfDays) => {
+  let today = new Date();
+  let pastDay = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate() - numOfDays
+  );
+  return pastDay;
 };
 
 randomDate = (start, end) => {
@@ -37,7 +33,7 @@ randomDate = (start, end) => {
 };
 
 formatDate = (date) => {
-  formattedDate = `${date.getDate()}/${date.getMonth() + 1}`;
+  formattedDate = `${date.getDate()}/${date.getMonth()}/${date.getFullYear()}`;
   return formattedDate;
 };
 
@@ -107,23 +103,25 @@ app.post("/event", (req, res) => {
 });
 
 // sessionsByDay
-app.post("/sessionsByDay", (req, res) => {
-  let selectedDate = new Date(new Date(req.body.date).setHours(24, 0, 0, 0));
-  Event.find({ date: { $gt: selectedDate.getTime() } })
+app.get("/sessionsByDay", (req, res) => {
+  Event.find({ date: { $gt: getLastDays(7).getTime() } })
     .exec()
     .then((docs) => {
       let sessionsArr = [];
       for (let i = 7; i > 0; i--) {
-        let firstDate = getLastDays(i, selectedDate);
-        let lastDate = getLastDays(i - 1, selectedDate);
+        let firstDate = new Date();
+        let pastDate = firstDate.getDate() - i;
+        firstDate.setDate(pastDate);
+        let lastDate = new Date();
+        let pastLastDate = lastDate.getDate() - i + 1;
+        lastDate.setDate(pastLastDate);
 
         let uniqueSessions = [];
 
         docs.forEach((e) => {
-          eventDate = new Date(e.date);
           if (
-            eventDate <= firstDate &&
-            eventDate >= lastDate &&
+            e.date > firstDate.getTime() &&
+            e.date < lastDate.getTime() &&
             !uniqueSessions.includes(e.session_id)
           ) {
             uniqueSessions.push(e.session_id);
@@ -139,25 +137,21 @@ app.post("/sessionsByDay", (req, res) => {
 });
 
 // sessionsByHour
-app.post("/sessionsByHour", (req, res) => {
-  let selectedDate = new Date(new Date(req.body.date).setHours(24, 0, 0, 0));
-  Event.find({ date: { $gt: selectedDate.getTime() } })
+app.get("/sessionsByHour", (req, res) => {
+  Event.find({ date: { $gt: getLastDays(1).getTime() } })
     .exec()
     .then((docs) => {
       let sessionsArr = [];
-      for (let i = 24; i > 0; i--) {
-        let startDate = new Date(selectedDate.getTime() - i * 60 * 60 * 1000);
-        let endDate = new Date(
-          selectedDate.getTime() - (i - 1) * 60 * 60 * 1000
-        );
+      for (let i = 23; i >= 0; i--) {
+        let startDate = new Date(new Date().getTime() - i * 60 * 60 * 1000);
+        let endDate = new Date(new Date().getTime() - (i - 1) * 60 * 60 * 1000);
 
         let uniqueSessions = [];
 
         docs.forEach((e) => {
-          eventDate = new Date(e.date);
           if (
-            eventDate <= firstDate &&
-            eventDate >= endDate &&
+            e.date > startDate.getTime() &&
+            e.date < endDate.getTime() &&
             !uniqueSessions.includes(e.session_id)
           ) {
             uniqueSessions.push(e.session_id);
@@ -286,51 +280,42 @@ app.get("/locations", (req, res) => {
     });
 });
 
-// // all events
-// app.get("/events", (req, res) => {
-//   const page = req.query.page;
-//   const perPage = 10;
-//   Event.find({})
-//     .limit(perPage)
-//     .skip(perPage * page)
-//     .sort({ date: "desc" })
-//     .exec((err, events) => {
-//       if (err) {
-//         res.send(err);
-//       }
-//       res.send(events);
-//     });
-// });
+// all events
+app.get("/events", (req, res) => {
+  const page = req.query.page;
+  const perPage = 10;
+  Event.find({})
+    .limit(perPage)
+    .skip(perPage * page)
+    .sort({ time: "desc" })
+    .exec((err, events) => {
+      if (err) {
+        res.send(err);
+      }
+      res.send(events);
+    });
+});
 
 // search events
-app.get("/events", (req, res) => {
-  let page = req.query.page;
-  let query = req.query.q;
-  let sort = req.query.sort;
-  let browser = req.query.browser;
-  let perPage = 10;
-  let mongoQuery;
-  if (query) {
-    mongoQuery = Event.find({ $text: { $search: query } });
-  } else {
-    mongoQuery = Event.find({});
-  }
+app.get("/events/search", (req, res) => {
+  const query = req.query.q;
+  const page = req.query.page;
+  const sort = req.query.sort;
+  const browser = req.query.browser;
+  let mongoQuery = Event.find({ $text: { $search: query } });
   if (browser) {
     mongoQuery.where({ browser: browser });
   }
   if (sort) {
     let sortBy = "";
-    let [sortMethod, direction] = sort.split(" ");
-    if (sortMethod === "date") {
+    if (sort === "date") {
       sortBy = "date";
-    } else if (sortMethod == "alpha") {
-      sortBy = "name";
+    } else if (sort == "alphabetical") {
+      sortBy = "alphabetical";
     }
-    mongoQuery.sort({ sortBy: direction });
+    mongoQuery.sort(sortBy);
   }
   mongoQuery
-    .limit(perPage)
-    .skip(perPage * page)
     .exec()
     .then((events) => {
       res.send(events);
@@ -339,35 +324,6 @@ app.get("/events", (req, res) => {
       console.log(err);
     });
 });
-
-// // search events
-// app.get("/events/search", (req, res) => {
-//   const query = req.query.q;
-//   const page = req.query.page;
-//   const sort = req.query.sort;
-//   const browser = req.query.browser;
-//   let mongoQuery = Event.find({ $text: { $search: query } });
-//   if (browser) {
-//     mongoQuery.where({ browser: browser });
-//   }
-//   if (sort) {
-//     let sortBy = "";
-//     if (sort === "date") {
-//       sortBy = "date";
-//     } else if (sort == "alphabetical") {
-//       sortBy = "alphabetical";
-//     }
-//     mongoQuery.sort(sortBy);
-//   }
-//   mongoQuery
-//     .exec()
-//     .then((events) => {
-//       res.send(events);
-//     })
-//     .catch((err) => {
-//       console.log(err);
-//     });
-// });
 
 app.delete("/events", (req, res) => {
   Event.remove()

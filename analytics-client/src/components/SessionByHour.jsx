@@ -17,7 +17,7 @@ import {
   KeyboardDatePicker,
 } from "@material-ui/pickers";
 
-function SessionByDay() {
+function SessionByHour() {
   const [data, setData] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -27,7 +27,7 @@ function SessionByDay() {
 
   useEffect(() => {
     axios
-      .post("http://localhost:5000/sessionsByDay", {
+      .post("http://localhost:5000/sessionsByHour", {
         date: selectedDate,
       })
       .then((response) => {
@@ -40,7 +40,7 @@ function SessionByDay() {
 
   return (
     <>
-      <Typography variant="h5">Sessions (Days - a week back):</Typography>
+      <Typography variant="h5">Sessions (Hour):</Typography>
       <MuiPickersUtilsProvider utils={DateFnsUtils}>
         <KeyboardDatePicker
           disableToolbar
@@ -62,14 +62,14 @@ function SessionByDay() {
           height={300}
           data={data}
           margin={{
-            top: 10,
+            top: 5,
             right: 30,
             left: 20,
-            bottom: 10,
+            bottom: 5,
           }}
         >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="date" />
+          <XAxis dataKey="time" />
           <YAxis />
           <Tooltip />
           {/* <Legend /> */}
@@ -85,4 +85,4 @@ function SessionByDay() {
   );
 }
 
-export default SessionByDay;
+export default SessionByHour;
